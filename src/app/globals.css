@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background-color: #F9F9F7;
+  color: #1A1A18;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #F1F0EC; }
+::-webkit-scrollbar-thumb { background: #D3D1C7; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #B4B2A9; }
+
+/* Grade de escalas */
+.slot-work    { border-left: 3px solid var(--emp-color); background: var(--emp-bg); }
+.slot-interval { background: #B4B2A9 !important; }
+.slot-day_off  { background: #F1F0EC !important; }
+.slot-empty    { background: transparent; }
