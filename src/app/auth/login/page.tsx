@@ -11,15 +11,20 @@ export default function LoginPage() {
   const supabase = createClient()
   const router = useRouter()
 
-  async function handleLogin(e: React.FormEvent) {
-    e.preventDefault()
-    if (!email || !password) return
-    setLoading(true)
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    setLoading(false)
-    if (error) { toast.error('E-mail ou senha incorretos'); return }
-    router.push('/escalas')
+async function handleLogin(e: React.FormEvent) {
+  e.preventDefault()
+  if (!email || !password) return
+  setLoading(true)
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+  setLoading(false)
+  if (error) { 
+    toast.error(error.message)
+    return 
   }
+  if (data?.session) {
+    window.location.href = '/escalas'
+  }
+}
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
