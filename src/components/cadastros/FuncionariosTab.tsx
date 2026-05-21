@@ -35,7 +35,7 @@ export default function FuncionariosTab({ store }: { store: Store }) {
 
   const form = editing ?? {
     name: '', role: 'Atendente', work_regime: '6x1' as const,
-    fixed_day_off: null, responsibilities: [], color: EMPLOYEE_COLORS[0], notes: '', active: true
+    fixed_day_off: null, responsibilities: [] as string[], color: EMPLOYEE_COLORS[0], notes: '', active: true
   }
 
   async function handleSave(e: React.FormEvent<HTMLFormElement>) {
