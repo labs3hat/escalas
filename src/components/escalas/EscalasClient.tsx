@@ -2,7 +2,7 @@
 import { useState, useMemo } from 'react'
 import { addDays, startOfWeek, format, subWeeks, addWeeks } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, Copy, Send, Check } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Copy, Send, Check, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Profile, Store } from '@/types'
 import { SLOT_KEYS, DAY_NAMES, MONTHS } from '@/types'
@@ -11,6 +11,10 @@ import { useSchedule } from '@/hooks/useSchedule'
 import GradeHoraria from './GradeHoraria'
 import ResumoSemanal from './ResumoSemanal'
 import PainelAlertas from './PainelAlertas'
+// ── NOVO ──────────────────────────────────────────────────────
+import { useFreelancerSlots } from './FreelancerSlots'
+import FreelancerSlots from './FreelancerSlots'
+// ──────────────────────────────────────────────────────────────
 
 interface Props {
   profile: Profile | null
@@ -20,7 +24,7 @@ interface Props {
 export default function EscalasClient({ profile, initialStores }: Props) {
   const [selectedStore, setSelectedStore] = useState<Store>(initialStores[0])
   const [weekOffset, setWeekOffset] = useState(0)
-  const [view, setView] = useState<'grade' | 'resumo'>('grade')
+  const [view, setView] = useState<'grade' | 'resumo' | 'freelancers'>('grade')
   const [publishing, setPublishing] = useState(false)
   const [copying, setCopying] = useState(false)
 
@@ -38,17 +42,29 @@ export default function EscalasClient({ profile, initialStores }: Props) {
   const { schedule, loading, updateSlot, publish, copyPreviousWeek, getSlot } =
     useSchedule(selectedStore?.id ?? null, weekStart)
 
+  // ── NOVO: estado de freelancers ────────────────────────────
+  const { openCount, canPublish: freelancerOk } =
+    useFreelancerSlots(schedule?.id ?? null)
+  // ──────────────────────────────────────────────────────────
+
   const weekLabel = useMemo(() => {
     const s = weekDates[0], e = weekDates[6]
     return `${s.getDate()} – ${e.getDate()} ${MONTHS[e.getMonth()]} ${e.getFullYear()}`
   }, [weekDates])
 
+  // ── MODIFICADO: bloquear publicação se há vagas em aberto ──
   async function handlePublish() {
+    if (!freelancerOk) {
+      toast.error(`Preencha as ${openCount} vaga(s) freelancer antes de publicar.`)
+      setView('freelancers')
+      return
+    }
     setPublishing(true)
     await publish()
     toast.success('Escala publicada!')
     setPublishing(false)
   }
+  // ──────────────────────────────────────────────────────────
 
   async function handleCopy() {
     setCopying(true)
@@ -113,6 +129,18 @@ export default function EscalasClient({ profile, initialStores }: Props) {
             </span>
           )}
 
+          {/* ── NOVO: badge de vagas em aberto ─────────────── */}
+          {openCount > 0 && (
+            <button
+              onClick={() => setView('freelancers')}
+              className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors"
+            >
+              <AlertTriangle size={11} />
+              {openCount} vaga{openCount > 1 ? 's' : ''} freelancer
+            </button>
+          )}
+          {/* ─────────────────────────────────────────────── */}
+
           {/* Actions */}
           <div className="ml-auto flex gap-2">
             <button onClick={handleCopy} disabled={copying}
@@ -120,26 +148,42 @@ export default function EscalasClient({ profile, initialStores }: Props) {
               <Copy size={13} />
               {copying ? 'Copiando...' : 'Copiar sem. ant.'}
             </button>
-            <button onClick={handlePublish} disabled={publishing || schedule?.status === 'published'}
-              className="flex items-center gap-1.5 text-sm px-3 py-1.5 bg-brand-500 hover:bg-brand-600 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed">
+            {/* ── MODIFICADO: botão bloqueado se há vagas abertas ── */}
+            <button
+              onClick={handlePublish}
+              disabled={publishing || schedule?.status === 'published' || !freelancerOk}
+              title={!freelancerOk ? `${openCount} vaga(s) freelancer em aberto` : undefined}
+              className="flex items-center gap-1.5 text-sm px-3 py-1.5 bg-brand-500 hover:bg-brand-600 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               {schedule?.status === 'published' ? <Check size={13} /> : <Send size={13} />}
               {publishing ? 'Publicando...' : schedule?.status === 'published' ? 'Publicada' : 'Publicar'}
             </button>
+            {/* ─────────────────────────────────────────────────── */}
           </div>
         </div>
 
         {/* View tabs */}
         <div className="flex border-b border-gray-200 bg-white px-5 flex-shrink-0">
-          {(['grade', 'resumo'] as const).map(v => (
+          {/* ── MODIFICADO: adicionada aba Freelancers ── */}
+          {(['grade', 'resumo', 'freelancers'] as const).map(v => (
             <button key={v} onClick={() => setView(v)}
-              className={`py-2.5 px-3 text-sm border-b-2 -mb-px transition-colors ${
+              className={`py-2.5 px-3 text-sm border-b-2 -mb-px transition-colors relative ${
                 view === v
                   ? 'border-brand-500 text-brand-700 font-medium'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}>
-              {v === 'grade' ? 'Grade horária' : 'Resumo diário'}
+              {v === 'grade' ? 'Grade horária'
+                : v === 'resumo' ? 'Resumo diário'
+                : 'Freelancers'}
+              {/* Badge de contagem na aba */}
+              {v === 'freelancers' && openCount > 0 && (
+                <span className="ml-1.5 inline-flex items-center justify-center w-4 h-4 text-[9px] font-bold rounded-full bg-amber-500 text-white">
+                  {openCount}
+                </span>
+              )}
             </button>
           ))}
+          {/* ─────────────────────────────────────────── */}
         </div>
 
         {/* Content */}
@@ -156,13 +200,25 @@ export default function EscalasClient({ profile, initialStores }: Props) {
               updateSlot={updateSlot}
               store={selectedStore}
             />
-          ) : (
+          ) : view === 'resumo' ? (
             <ResumoSemanal
               employees={employees}
               weekDates={weekDates}
               getSlot={getSlot}
               store={selectedStore}
             />
+          ) : (
+            // ── NOVO: aba de freelancers ──────────────────────
+            <div className="p-4 max-w-lg">
+              {schedule?.id ? (
+                <FreelancerSlots scheduleId={schedule.id} />
+              ) : (
+                <p className="text-sm text-gray-400">
+                  Gere a escala primeiro para ver as vagas freelancer.
+                </p>
+              )}
+            </div>
+            // ─────────────────────────────────────────────────
           )}
         </div>
       </div>
